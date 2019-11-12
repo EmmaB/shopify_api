@@ -34,6 +34,41 @@ module ShopifyAPI
       load_attributes_from_response(post(:close, {}, only_id))
     end
 
+    def fulfillment_request(fulfillment_order_line_items:, message:)
+      body = {
+        fulfillment_request: {
+          fulfillment_order_line_items: fulfillment_order_line_items,
+          message: message
+        }
+      }
+      load_keyed_fulfillment_orders_from_response(post(:fulfillment_request, body, only_id))
+    end
+
+    def accept_fulfillment_request(params)
+      load_attributes_from_response(post('fulfillment_request/accept', params, only_id))
+    end
+
+    def reject_fulfillment_request(params)
+      load_attributes_from_response(post('fulfillment_request/reject', params, only_id))
+    end
+
+    def cancellation_request(message:)
+      body = {
+          cancellation_request: {
+              message: message
+          }
+      }
+      load_attributes_from_response(post(:cancellation_request, body, only_id))
+    end
+
+    def accept_cancellation_request(params)
+      load_attributes_from_response(post('cancellation_request/accept', params, only_id))
+    end
+
+    def reject_cancellation_request(params)
+      load_attributes_from_response(post('cancellation_request/reject', params, only_id))
+    end
+
     private
 
     def load_keyed_fulfillment_orders_from_response(response)

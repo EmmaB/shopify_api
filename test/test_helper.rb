@@ -112,6 +112,11 @@ module Test
         )
       end
 
+      def query_string(hash)
+        return '' if hash.nil? || hash.empty?
+        '?' + hash.map { |k, v| URI::encode(k.to_s) + '=' + URI::encode(v.to_s) }.join('&')
+      end
+
       def ar_version_before?(version_string)
         Gem::Version.new(ActiveResource::VERSION::STRING) < Gem::Version.new(version_string)
       end
