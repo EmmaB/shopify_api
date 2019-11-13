@@ -55,27 +55,29 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#move" do
-      should "be able to move fulfillment order to a new_location_id" do
+      should "move a fulfillment order to a new_location_id" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
         new_location_id = 5
 
+        original = fulfillment_order.clone
+        original.status = 'closed'
         moved = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
         moved['assigned_location_id'] = new_location_id
-        fulfillment_order.status = 'closed'
 
+        request_body = { fulfillment_order: { new_location_id: 5 } }
         body = {
-            original_fulfillment_order: fulfillment_order,
-            moved_fulfillment_order: moved,
-            remaining_fulfillment_order: nil,
+          original_fulfillment_order: original,
+          moved_fulfillment_order: moved,
+          remaining_fulfillment_order: nil,
         }
-        api_version = ShopifyAPI::ApiVersion.find_version('2019-01')
-        endpoint = "fulfillment_orders/519788021/move"
-        extension = ".json"
-        url = "https://this-is-my-test-shop.myshopify.com#{api_version.construct_api_path("#{endpoint}#{extension}")}"
-        url = url + "?fulfillment_order%5Bnew_location_id%5D=5"
-        fake endpoint, :method => :post, :url => url, :body => ActiveSupport::JSON.encode(body)
+        fake "fulfillment_orders/519788021/move", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
+          :body => ActiveSupport::JSON.encode(body)
 
         response_fos = fulfillment_order.move(new_location_id: new_location_id)
+
+        assert_equal 'closed', fulfillment_order.status
+
         assert_equal 3, response_fos.count
         original_fulfillment_order = response_fos['original_fulfillment_order']
         refute_nil original_fulfillment_order
@@ -94,7 +96,7 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#cancel" do
-      should "be able to cancel fulfillment order" do
+      should "cancel a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
         assert_equal 'open', fulfillment_order.status
 
@@ -107,6 +109,8 @@ class FulFillmentOrderTest < Test::Unit::TestCase
         fake "fulfillment_orders/519788021/cancel", :method => :post, :body => ActiveSupport::JSON.encode(body)
 
         response_fos = fulfillment_order.cancel
+
+        assert_equal 'cancelled', fulfillment_order.status
         assert_equal 2, response_fos.count
         fulfillment_order = response_fos['fulfillment_order']
         assert_equal 'cancelled', fulfillment_order.status
