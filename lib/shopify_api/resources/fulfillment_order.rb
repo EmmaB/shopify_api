@@ -41,32 +41,36 @@ module ShopifyAPI
           message: message
         }
       }
-      load_keyed_fulfillment_orders_from_response(post(:fulfillment_request, body, only_id))
+      keyed_fos = load_keyed_fulfillment_orders_from_response(post(:fulfillment_request, {}, body.to_json))
+      if keyed_fos&.fetch('original_fulfillment_order', nil)&.attributes
+        load(keyed_fos['original_fulfillment_order'].attributes, false, true)
+      end
+      keyed_fos
     end
 
     def accept_fulfillment_request(params)
-      load_attributes_from_response(post('fulfillment_request/accept', params, only_id))
+      load_attributes_from_response(post('fulfillment_request/accept', {}, params.to_json))
     end
 
     def reject_fulfillment_request(params)
-      load_attributes_from_response(post('fulfillment_request/reject', params, only_id))
+      load_attributes_from_response(post('fulfillment_request/reject', {}, params.to_json))
     end
 
     def cancellation_request(message:)
       body = {
-          cancellation_request: {
-              message: message
-          }
+        cancellation_request: {
+          message: message
+        }
       }
-      load_attributes_from_response(post(:cancellation_request, body, only_id))
+      load_attributes_from_response(post(:cancellation_request, {}, body.to_json))
     end
 
     def accept_cancellation_request(params)
-      load_attributes_from_response(post('cancellation_request/accept', params, only_id))
+      load_attributes_from_response(post('cancellation_request/accept', {}, params.to_json))
     end
 
     def reject_cancellation_request(params)
-      load_attributes_from_response(post('cancellation_request/reject', params, only_id))
+      load_attributes_from_response(post('cancellation_request/reject', {}, params.to_json))
     end
 
     private

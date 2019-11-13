@@ -134,7 +134,7 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#fulfillment_request" do
-      should "be able to make a fulfillment request for a fulfillment order" do
+      should "make a fulfillment request for a fulfillment order" do
         original_fulfillment_order = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
         submitted_fulfillment_order = original_fulfillment_order.clone
         submitted_fulfillment_order['id'] = 2
@@ -143,19 +143,23 @@ class FulFillmentOrderTest < Test::Unit::TestCase
         unsubmitted_fulfillment_order = original_fulfillment_order.clone
         unsubmitted_fulfillment_order['id'] = 3
         unsubmitted_fulfillment_order['request_status'] = 'unsubmitted'
-        original_fulfillment_order['status'] = 'closed'
+        original_fulfillment_order['status'] = 'in_progress'
         body = {
           original_fulfillment_order: original_fulfillment_order,
           submitted_fulfillment_order: submitted_fulfillment_order,
           unsubmitted_fulfillment_order: unsubmitted_fulfillment_order
         }
-        fake_query = {
-          'fulfillment_request[fulfillment_order_line_items][0][id]' => '1',
-          'fulfillment_request[fulfillment_order_line_items][0][quantity]' => '1',
-          'fulfillment_request[message]' => 'Fulfill this FO, please.'
+        request_body = {
+          fulfillment_request: {
+            fulfillment_order_line_items: [
+              { id: 1, quantity: 1 }
+            ],
+            message: 'Fulfill this FO, please.'
+          }
         }
-        fake "fulfillment_orders/519788021/fulfillment_request.json#{query_string(fake_query)}", :extension => false,
-          :method => :post, :body => ActiveSupport::JSON.encode(body)
+        fake "fulfillment_orders/519788021/fulfillment_request", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
+          :body => ActiveSupport::JSON.encode(body)
 
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
         params = {
@@ -164,9 +168,11 @@ class FulFillmentOrderTest < Test::Unit::TestCase
         }
         original_submitted_unsubmitted_fos = fulfillment_order.fulfillment_request(params)
 
+        assert_equal 'in_progress', fulfillment_order.status
+
         original_fo = original_submitted_unsubmitted_fos['original_fulfillment_order']
         assert_equal 519788021, original_fo.id
-        assert_equal 'closed', original_fo.status
+        assert_equal 'in_progress', original_fo.status
 
         submitted_fo = original_submitted_unsubmitted_fos['submitted_fulfillment_order']
         assert_equal 2, submitted_fo.id
@@ -181,21 +187,21 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#accept_fulfillment_request" do
-      should "be able to accept a fulfillment request for a fulfillment order" do
+      should "accept a fulfillment request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
-        fake_query = {
-            'message' => "LGTM. Accept this FO fulfillment request",
-            'other' => "random"
+        request_body = {
+          'message' => "LGTM. Accept this FO fulfillment request",
+          'other' => "random"
         }
         fake_response = { fulfillment_order: fulfillment_order.attributes.merge(status: 'in_progress') }
-        fake "fulfillment_orders/519788021/fulfillment_request/accept.json#{query_string(fake_query)}",
-          :extension => false, :method => :post,
+        fake "fulfillment_orders/519788021/fulfillment_request/accept", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
           :body => ActiveSupport::JSON.encode(fake_response)
 
         params = {
-            message: 'LGTM. Accept this FO fulfillment request',
-            other: 'random'
+          message: 'LGTM. Accept this FO fulfillment request',
+          other: 'random'
         }
         accepted = fulfillment_order.accept_fulfillment_request(params)
 
@@ -205,17 +211,17 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#reject_fulfillment_request" do
-      should "be able to reject a fulfillment request for a fulfillment order" do
+      should "reject a fulfillment request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
-        fake_query = {
+        request_body = {
           'message' => "LBTM. Reject this FO fulfillment request",
           'other' => "text"
         }
         fake_response = { fulfillment_order: fulfillment_order.attributes.merge(status: 'closed') }
-        fake "fulfillment_orders/519788021/fulfillment_request/reject.json#{query_string(fake_query)}",
-           :extension => false, :method => :post,
-           :body => ActiveSupport::JSON.encode(fake_response)
+        fake "fulfillment_orders/519788021/fulfillment_request/reject", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
+          :body => ActiveSupport::JSON.encode(fake_response)
 
         params = {
           message: 'LBTM. Reject this FO fulfillment request',
@@ -229,31 +235,35 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#cancellation_request" do
-      should "be able to make a cancellation request for a fulfillment order" do
+      should "make a cancellation request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
-        closed = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
-        closed['status'] = 'closed'
-        fake "fulfillment_orders/519788021/close", :method => :post, :body => ActiveSupport::JSON.encode(closed)
+        cancelling = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
+        cancelling['status'] = 'in_progress'
+        cancelling['request_status'] = 'cancellation_accepted'
+        fake "fulfillment_orders/519788021/cancellation_request", :method => :post,
+          :body => ActiveSupport::JSON.encode(cancelling)
 
-        assert_equal 'open', fulfillment_order.status
-        assert fulfillment_order.close
-        assert_equal 'closed', fulfillment_order.status
+        cancelled = fulfillment_order.cancellation_request(message: "Cancelling this please.")
+
+        assert_equal true, cancelled
+        assert_equal 'in_progress', fulfillment_order.status
+        assert_equal 'cancellation_accepted', fulfillment_order.request_status
       end
     end
 
     context "#accept_cancellation_request" do
-      should "be able to accept a cancellation request for a fulfillment order" do
+      should "accept a cancellation request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
-        fake_query = {
+        request_body = {
           'message' => "Already in-progress. Reject this FO cancellation request",
           'other' => "blah"
         }
         fake_response = { fulfillment_order: fulfillment_order.attributes.merge(status: 'closed') }
-        fake "fulfillment_orders/519788021/cancellation_request/accept.json#{query_string(fake_query)}",
-           :extension => false, :method => :post,
-           :body => ActiveSupport::JSON.encode(fake_response)
+        fake "fulfillment_orders/519788021/cancellation_request/accept", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
+          :body => ActiveSupport::JSON.encode(fake_response)
 
         params = {
           message: 'Already in-progress. Reject this FO cancellation request',
@@ -267,16 +277,16 @@ class FulFillmentOrderTest < Test::Unit::TestCase
     end
 
     context "#reject_cancellation_request" do
-      should "be able to reject a cancellation request for a fulfillment order" do
+      should "reject a cancellation request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
-        fake_query = {
+        request_body = {
           'message' => "Already in-progress. Reject this FO cancellation request",
           'other' => "blah"
         }
         fake_response = { fulfillment_order: fulfillment_order.attributes.merge(status: 'in_progress') }
-        fake "fulfillment_orders/519788021/cancellation_request/reject.json#{query_string(fake_query)}",
-          :extension => false, :method => :post,
+        fake "fulfillment_orders/519788021/cancellation_request/reject", :method => :post,
+          :request_body => request_body,
           :body => ActiveSupport::JSON.encode(fake_response)
 
         params = {
