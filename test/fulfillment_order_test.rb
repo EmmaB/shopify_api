@@ -133,17 +133,18 @@ class FulFillmentOrderTest < Test::Unit::TestCase
       end
     end
 
-    context "#fulfillment_request" do
-      should "make a fulfillment request for a fulfillment order" do
+    context "#request_fulfillment" do
+      should "make a fulfillment request for a fulfillment order including unsubmitted" do
         original_fulfillment_order = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
+        original_fulfillment_order['status'] = 'closed'
         submitted_fulfillment_order = original_fulfillment_order.clone
         submitted_fulfillment_order['id'] = 2
         submitted_fulfillment_order['status'] = 'open'
         submitted_fulfillment_order['request_status'] = 'submitted'
         unsubmitted_fulfillment_order = original_fulfillment_order.clone
         unsubmitted_fulfillment_order['id'] = 3
+        unsubmitted_fulfillment_order['status'] = 'open'
         unsubmitted_fulfillment_order['request_status'] = 'unsubmitted'
-        original_fulfillment_order['status'] = 'in_progress'
         body = {
           original_fulfillment_order: original_fulfillment_order,
           submitted_fulfillment_order: submitted_fulfillment_order,
@@ -166,23 +167,70 @@ class FulFillmentOrderTest < Test::Unit::TestCase
           fulfillment_order_line_items: [{ id: 1, quantity: 1 }],
           message: "Fulfill this FO, please."
         }
-        original_submitted_unsubmitted_fos = fulfillment_order.fulfillment_request(params)
+        response_fulfillment_orders = fulfillment_order.request_fulfillment(params)
 
-        assert_equal 'in_progress', fulfillment_order.status
+        assert_equal 'closed', fulfillment_order.status
+        assert_equal 3, response_fulfillment_orders.size
 
-        original_fo = original_submitted_unsubmitted_fos['original_fulfillment_order']
+        original_fo = response_fulfillment_orders['original_fulfillment_order']
         assert_equal 519788021, original_fo.id
-        assert_equal 'in_progress', original_fo.status
+        assert_equal 'closed', original_fo.status
 
-        submitted_fo = original_submitted_unsubmitted_fos['submitted_fulfillment_order']
+        submitted_fo = response_fulfillment_orders['submitted_fulfillment_order']
         assert_equal 2, submitted_fo.id
         assert_equal 'open', submitted_fo.status
         assert_equal 'submitted', submitted_fo.request_status
 
-        unsubmitted_fo = original_submitted_unsubmitted_fos['unsubmitted_fulfillment_order']
+        unsubmitted_fo = response_fulfillment_orders['unsubmitted_fulfillment_order']
         assert_equal 3, unsubmitted_fo.id
         assert_equal 'open', unsubmitted_fo.status
         assert_equal 'unsubmitted', unsubmitted_fo.request_status
+      end
+
+      should "make a fulfillment request for a fulfillment order excluding unsubmitted" do
+        original_fulfillment_order = ActiveSupport::JSON.decode(load_fixture('fulfillment_order'))
+        original_fulfillment_order['status'] = 'closed'
+        submitted_fulfillment_order = original_fulfillment_order.clone
+        submitted_fulfillment_order['id'] = 2
+        submitted_fulfillment_order['status'] = 'open'
+        submitted_fulfillment_order['request_status'] = 'submitted'
+        body = {
+          original_fulfillment_order: original_fulfillment_order,
+          submitted_fulfillment_order: submitted_fulfillment_order,
+          unsubmitted_fulfillment_order: nil,
+        }
+        request_body = {
+          fulfillment_request: {
+            fulfillment_order_line_items: [
+              { id: 1, quantity: 1 }
+            ],
+            message: 'Fulfill this FO, please.'
+          }
+        }
+        fake "fulfillment_orders/519788021/fulfillment_request", :method => :post,
+          :request_body => ActiveSupport::JSON.encode(request_body),
+          :body => ActiveSupport::JSON.encode(body)
+
+        fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
+        params = {
+          fulfillment_order_line_items: [{ id: 1, quantity: 1 }],
+          message: "Fulfill this FO, please."
+        }
+        response_fulfillment_orders = fulfillment_order.request_fulfillment(params)
+
+        assert_equal 'closed', fulfillment_order.status
+        assert_equal 3, response_fulfillment_orders.size
+
+        original_fo = response_fulfillment_orders['original_fulfillment_order']
+        assert_equal 519788021, original_fo.id
+        assert_equal 'closed', original_fo.status
+
+        submitted_fo = response_fulfillment_orders['submitted_fulfillment_order']
+        assert_equal 2, submitted_fo.id
+        assert_equal 'open', submitted_fo.status
+        assert_equal 'submitted', submitted_fo.request_status
+
+        assert_nil response_fulfillment_orders['unsubmitted_fulfillment_order']
       end
     end
 
@@ -234,7 +282,7 @@ class FulFillmentOrderTest < Test::Unit::TestCase
       end
     end
 
-    context "#cancellation_request" do
+    context "#request_cancellation" do
       should "make a cancellation request for a fulfillment order" do
         fulfillment_order = ShopifyAPI::FulfillmentOrder.find(519788021)
 
@@ -244,7 +292,7 @@ class FulFillmentOrderTest < Test::Unit::TestCase
         fake "fulfillment_orders/519788021/cancellation_request", :method => :post,
           :body => ActiveSupport::JSON.encode(cancelling)
 
-        cancelled = fulfillment_order.cancellation_request(message: "Cancelling this please.")
+        cancelled = fulfillment_order.request_cancellation(message: "Cancelling this please.")
 
         assert_equal true, cancelled
         assert_equal 'in_progress', fulfillment_order.status

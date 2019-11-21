@@ -34,7 +34,7 @@ module ShopifyAPI
       load_attributes_from_response(post(:close, {}, only_id))
     end
 
-    def fulfillment_request(fulfillment_order_line_items:, message:)
+    def request_fulfillment(fulfillment_order_line_items:, message:)
       body = {
         fulfillment_request: {
           fulfillment_order_line_items: fulfillment_order_line_items,
@@ -56,7 +56,7 @@ module ShopifyAPI
       load_attributes_from_response(post('fulfillment_request/reject', {}, params.to_json))
     end
 
-    def cancellation_request(message:)
+    def request_cancellation(message:)
       body = {
         cancellation_request: {
           message: message
