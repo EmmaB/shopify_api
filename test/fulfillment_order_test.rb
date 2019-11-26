@@ -50,7 +50,7 @@ class FulFillmentOrderTest < Test::Unit::TestCase
 
         assert_equal 1, fulfillments.count
         fulfillment = fulfillments.first
-        assert_equal 'ShopifyAPI::FulfillmentOrderFulfillment', fulfillment.class.name
+        assert_equal 'ShopifyAPI::FulfillmentV2', fulfillment.class.name
         assert_equal 450789469, fulfillment.order_id
       end
     end

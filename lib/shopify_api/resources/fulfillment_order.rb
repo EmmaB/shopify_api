@@ -10,7 +10,7 @@ module ShopifyAPI
 
     def fulfillments(options = {})
       fo_fulfillments = get(:fulfillments, options)
-      fo_fulfillments.map { |fof| FulfillmentOrderFulfillment.new(fof.as_json) }
+      fo_fulfillments.map { |fof| FulfillmentV2.new(fof.as_json) }
     end
   end
 end

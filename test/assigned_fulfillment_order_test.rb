@@ -3,21 +3,13 @@ require 'test_helper'
 class AssignedFulFillmentOrderTest < Test::Unit::TestCase
   context "AssignedFulfillmentOrder" do
     context "#all" do
-      should "raise ValidationException if assigned_status is invalid" do
-        assert_raises ShopifyAPI::ValidationException do
-          assigned_fulfillment_orders = ShopifyAPI::AssignedFulfillmentOrder.all(
-            params: { assigned_status: 'bogus_status' }
-          )
-        end
-      end
-
       should "list assigned fulfillment orders by assigned_status" do
         fo_fixture = load_fixture('assigned_fulfillment_orders')
         fake 'assigned_fulfillment_orders.json?assigned_status=cancellation_requested', method: :get,
              body: fo_fixture, extension: false
 
         assigned_fulfillment_orders = ShopifyAPI::AssignedFulfillmentOrder.all(
-            params: { assigned_status: ShopifyAPI::AssignedFulfillmentOrder::CANCELLATION_REQUESTED }
+            params: { assigned_status: 'cancellation_requested' }
         )
 
         assert_equal 2, assigned_fulfillment_orders.count
