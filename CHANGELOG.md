@@ -25,7 +25,7 @@
 
 == Version 7.0.0
 
-* Removed support for `ActiveResouce` < `4.1`.
+* Removed support for `ActiveResource` < `4.1`.
 * Removed `ShopifyAPI::Oauth`.
 * Added api version support, See [migration
 notes](README.md#-breaking-change-notice-for-version-700-)
